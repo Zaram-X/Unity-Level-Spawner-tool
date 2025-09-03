@@ -3,8 +3,12 @@ using UnityEditor;
 
 public class LevelSpawnerWindow : EditorWindow
 {
-    [MenuItem("Tools/Level Spawner")]
+    // Prefab slots
+    private GameObject coinPrefab;
+    private GameObject enemyPrefab;
+    private GameObject platformPrefab;
 
+    [MenuItem("Tools/Level Spawner")]
     //Add a menu item under tools > level spawner
     public static void ShowWindow()
     {
@@ -16,6 +20,14 @@ public class LevelSpawnerWindow : EditorWindow
     {
         // UI content will go here Later
         GUILayout.Label("Level spawner Tool", EditorStyles.boldLabel);
-        GUILayout.Label("This is your custom Editor window");
+
+        // Prefab input field
+        coinPrefab = (GameObject)EditorGUILayout.ObjectField("CoinP refab", coinPrefab, typeof(GameObject), false);
+        enemyPrefab = (GameObject)EditorGUILayout.ObjectField ("Enemy prefab", enemyPrefab, typeof(GameObject), false);
+        platformPrefab= (GameObject)EditorGUILayout.ObjectField ("Platform Prefab", platformPrefab, typeof(GameObject), false);
+
+
+        GUILayout.Space(10);
+        GUILayout.Label("Drag your prefabs here!", EditorStyles.helpBox);
     }
 }
