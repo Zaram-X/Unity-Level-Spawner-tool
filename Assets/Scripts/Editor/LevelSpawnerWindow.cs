@@ -8,81 +8,115 @@ public class LevelSpawnerWindow : EditorWindow
     private GameObject enemyPrefab;
     private GameObject platformPrefab;
 
-    // new spawn postion field
+    // Spawn position settings
     private Vector3 spawnPosition = Vector3.zero;
 
+    // Options
+    private bool randomizePosition = false;
+    private Vector3 randomRange = new Vector3(5, 0, 5);
+    private int spawnCount = 1;
+
     [MenuItem("Tools/Level Spawner")]
-    //Add a menu item under tools > level spawner
     public static void ShowWindow()
     {
-        // Opens the Editor Window 
         GetWindow<LevelSpawnerWindow>("Level Spawner");
     }
 
     private void OnGUI()
     {
-        // UI content will go here Later
-        GUILayout.Label("Level spawner Tool", EditorStyles.boldLabel); //Adds a bold title at the top of the window.
+        GUILayout.Label("Level Spawner Tool", EditorStyles.boldLabel);
 
-        // Prefab input field
-        coinPrefab = (GameObject)EditorGUILayout.ObjectField("Coin Prefab", coinPrefab, typeof(GameObject), false);
-        enemyPrefab = (GameObject)EditorGUILayout.ObjectField("Enemy prefab", enemyPrefab, typeof(GameObject), false);
-        platformPrefab = (GameObject)EditorGUILayout.ObjectField("Platform Prefab", platformPrefab, typeof(GameObject), false);
+        // === Prefab Section ===
+        GUILayout.Label("Prefabs", EditorStyles.boldLabel);
+        EditorGUILayout.BeginVertical("box");
+        coinPrefab = (GameObject)EditorGUILayout.ObjectField(
+            new GUIContent("Coin Prefab", "Drag your coin prefab here"),
+            coinPrefab, typeof(GameObject), false);
 
+        enemyPrefab = (GameObject)EditorGUILayout.ObjectField(
+            new GUIContent("Enemy Prefab", "Drag your enemy prefab here"),
+            enemyPrefab, typeof(GameObject), false);
+
+        platformPrefab = (GameObject)EditorGUILayout.ObjectField(
+            new GUIContent("Platform Prefab", "Drag your platform prefab here"),
+            platformPrefab, typeof(GameObject), false);
+        EditorGUILayout.EndVertical();
 
         GUILayout.Space(10);
-        // GUILayout.Label("Drag your prefabs here!", EditorStyles.helpBox);
 
-        // spawn postion fied
+        // === Position Section ===
+        GUILayout.Label("Spawn Settings", EditorStyles.boldLabel);
+        EditorGUILayout.BeginVertical("box");
         spawnPosition = EditorGUILayout.Vector3Field("Spawn Position", spawnPosition);
 
-        //spawn at selected object's position
-        if (GUILayout.Button("Use Selected Object"))
+        if (GUILayout.Button("Use Selected Object Position"))
         {
             if (Selection.activeGameObject != null)
             {
                 spawnPosition = Selection.activeGameObject.transform.position;
-                Debug.Log($" Spawn position set to {spawnPosition} (from {Selection.activeGameObject.name})");
+                Debug.Log($"📌 Spawn position set to {spawnPosition} (from {Selection.activeGameObject.name})");
             }
             else
             {
-                Debug.LogWarning("No Object selected in this scene");
+                Debug.LogWarning("No object selected in the scene.");
             }
         }
+        EditorGUILayout.EndVertical();
 
         GUILayout.Space(10);
 
-        //Spawn buttons
-        if (GUILayout.Button("Spawn Coin"))
+        // === Options Section ===
+        GUILayout.Label("Options", EditorStyles.boldLabel);
+        EditorGUILayout.BeginVertical("box");
+        randomizePosition = EditorGUILayout.Toggle("Randomize Position", randomizePosition);
+        if (randomizePosition)
         {
-            SpawnPrefab(coinPrefab);
-        }
-        if (GUILayout.Button("Spawn Enemy"))
-        {
-            SpawnPrefab(enemyPrefab);
-        }
-        if (GUILayout.Button("Spawn Platform"))
-        {
-            SpawnPrefab(platformPrefab);
+            randomRange = EditorGUILayout.Vector3Field("Random Range", randomRange);
         }
 
+        spawnCount = EditorGUILayout.IntField("Spawn Count", spawnCount);
+        spawnCount = Mathf.Max(1, spawnCount); // Prevent negative/zero
+        EditorGUILayout.EndVertical();
+
+        GUILayout.Space(10);
+
+        // === Spawn Buttons ===
+        GUILayout.Label("Spawn Prefabs", EditorStyles.boldLabel);
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button("Spawn Coin")) { SpawnPrefab(coinPrefab); }
+        if (GUILayout.Button("Spawn Enemy")) { SpawnPrefab(enemyPrefab); }
+        if (GUILayout.Button("Spawn Platform")) { SpawnPrefab(platformPrefab); }
+        EditorGUILayout.EndHorizontal();
     }
 
     private void SpawnPrefab(GameObject prefab)
     {
         if (prefab != null)
         {
-            // spawn prefab at chosen position
-            GameObject spawned = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-            spawned.transform.position = spawnPosition;
+            for (int i = 0; i < spawnCount; i++)
+            {
+                Vector3 finalPosition = spawnPosition;
 
-            //mark scene dirty(so Unity knows it changed)
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(spawned.scene);
-             Debug.Log($"✅ Spawned: {prefab.name} at {spawnPosition}");
+                if (randomizePosition)
+                {
+                    finalPosition += new Vector3(
+                        Random.Range(-randomRange.x, randomRange.x),
+                        Random.Range(-randomRange.y, randomRange.y),
+                        Random.Range(-randomRange.z, randomRange.z)
+                    );
+                }
+
+                GameObject spawned = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                Undo.RegisterCreatedObjectUndo(spawned, "Spawned " + prefab.name); //  Undo support
+                spawned.transform.position = finalPosition;
+
+                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(spawned.scene);
+                Debug.Log($" Spawned: {prefab.name} at {finalPosition}");
+            }
         }
         else
         {
-            Debug.LogWarning("No prefab assigned");
+            Debug.LogWarning(" No prefab assigned.");
         }
     }
 }
