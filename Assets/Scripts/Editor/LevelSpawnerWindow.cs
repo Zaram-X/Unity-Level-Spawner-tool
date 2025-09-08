@@ -3,6 +3,19 @@ using UnityEditor;
 
 public class LevelSpawnerWindow : EditorWindow
 {
+   // private bool showSpawnSettings = true;
+   // private bool showOptions = true;
+    private bool showRandomization = true;
+
+    // Randomization both location and scale 
+    private bool randomizeRotation = false;
+    private Vector3 minRotation = Vector3.zero;
+    private Vector3 maxRotation = Vector3.zero;
+
+    private bool randomizeScale = false;
+    private Vector3 minScale = Vector3.one;
+    private Vector3 maxScale = Vector3.one;
+
     // Prefab slots
     private GameObject coinPrefab;
     private GameObject enemyPrefab;
@@ -54,7 +67,7 @@ public class LevelSpawnerWindow : EditorWindow
             if (Selection.activeGameObject != null)
             {
                 spawnPosition = Selection.activeGameObject.transform.position;
-                Debug.Log($"📌 Spawn position set to {spawnPosition} (from {Selection.activeGameObject.name})");
+                Debug.Log($" Spawn position set to {spawnPosition} (from {Selection.activeGameObject.name})");
             }
             else
             {
@@ -79,6 +92,35 @@ public class LevelSpawnerWindow : EditorWindow
         EditorGUILayout.EndVertical();
 
         GUILayout.Space(10);
+
+        // === Randomization settings ===
+        showRandomization = EditorGUILayout.Foldout(showRandomization, "Randomization Settings", true);
+        if (showRandomization)
+        {
+            EditorGUILayout.BeginVertical("box");
+
+            // Rotation
+            randomizeRotation = EditorGUILayout.Toggle("Randomize Rotation", randomizeRotation);
+            if (randomizeRotation)
+            {
+                minRotation = EditorGUILayout.Vector3Field("Min Rotation", minRotation);
+                maxRotation = EditorGUILayout.Vector3Field("Max Rotation", maxRotation);
+            }
+
+            // Scale
+            randomizeScale = EditorGUILayout.Toggle("Randomize Scale", randomizeScale);
+            if (randomizeScale)
+            {
+                minScale = EditorGUILayout.Vector3Field("Min Scale", minScale);
+                maxScale = EditorGUILayout.Vector3Field("Max Scale", maxScale);
+            }
+
+            EditorGUILayout.EndVertical();
+        }
+
+
+        GUILayout.Space(10);
+
 
         // === Spawn Buttons ===
         GUILayout.Label("Spawn Prefabs", EditorStyles.boldLabel);
@@ -106,9 +148,26 @@ public class LevelSpawnerWindow : EditorWindow
                     );
                 }
 
+                // Instantiate first
                 GameObject spawned = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-                Undo.RegisterCreatedObjectUndo(spawned, "Spawned " + prefab.name); //  Undo support
+                Undo.RegisterCreatedObjectUndo(spawned, "Spawned " + prefab.name);
                 spawned.transform.position = finalPosition;
+
+                if (randomizeRotation)
+                {
+                    float rotX = Random.Range(minRotation.x, maxRotation.x);
+                    float rotY = Random.Range(minRotation.y, maxRotation.y);
+                    float rotZ = Random.Range(minRotation.z, maxRotation.z);
+                    spawned.transform.rotation = Quaternion.Euler(rotX, rotY, rotZ);
+                }
+
+                if (randomizeScale)
+                {
+                    float scaleX = Random.Range(minScale.x, maxScale.x);
+                    float scaleY = Random.Range(minScale.y, maxScale.y);
+                    float scaleZ = Random.Range(minScale.z, maxScale.z);
+                    spawned.transform.localScale = new Vector3(scaleX, scaleY, scaleZ);
+                }
 
                 UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(spawned.scene);
                 Debug.Log($" Spawned: {prefab.name} at {finalPosition}");
@@ -118,5 +177,7 @@ public class LevelSpawnerWindow : EditorWindow
         {
             Debug.LogWarning(" No prefab assigned.");
         }
+
+
     }
 }
