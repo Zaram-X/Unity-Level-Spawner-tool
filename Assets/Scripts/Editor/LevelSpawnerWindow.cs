@@ -3,9 +3,10 @@ using UnityEditor;
 
 public class LevelSpawnerWindow : EditorWindow
 {
-   // private bool showSpawnSettings = true;
-   // private bool showOptions = true;
+    private bool showSpawnSettings = true;
+    private bool showOptions = true;
     private bool showRandomization = true;
+    private bool showPrefabs = true;
 
     // Randomization both location and scale 
     private bool randomizeRotation = false;
@@ -40,58 +41,81 @@ public class LevelSpawnerWindow : EditorWindow
         GUILayout.Label("Level Spawner Tool", EditorStyles.boldLabel);
 
         // === Prefab Section ===
-        GUILayout.Label("Prefabs", EditorStyles.boldLabel);
-        EditorGUILayout.BeginVertical("box");
-        coinPrefab = (GameObject)EditorGUILayout.ObjectField(
-            new GUIContent("Coin Prefab", "Drag your coin prefab here"),
-            coinPrefab, typeof(GameObject), false);
+        // GUILayout.Label("Prefabs", EditorStyles.boldLabel);
+        showPrefabs = EditorGUILayout.Foldout(showPrefabs, "Prefabs", true);
+        if (showPrefabs)
+        {
+            EditorGUILayout.BeginVertical("box");
+            coinPrefab = (GameObject)EditorGUILayout.ObjectField(
+                new GUIContent("Coin Prefab", "Drag your coin prefab here"),
+                coinPrefab, typeof(GameObject), false);
 
-        enemyPrefab = (GameObject)EditorGUILayout.ObjectField(
-            new GUIContent("Enemy Prefab", "Drag your enemy prefab here"),
-            enemyPrefab, typeof(GameObject), false);
+            enemyPrefab = (GameObject)EditorGUILayout.ObjectField(
+                new GUIContent("Enemy Prefab", "Drag your enemy prefab here"),
+                enemyPrefab, typeof(GameObject), false);
 
-        platformPrefab = (GameObject)EditorGUILayout.ObjectField(
-            new GUIContent("Platform Prefab", "Drag your platform prefab here"),
-            platformPrefab, typeof(GameObject), false);
-        EditorGUILayout.EndVertical();
+            platformPrefab = (GameObject)EditorGUILayout.ObjectField(
+                new GUIContent("Platform Prefab", "Drag your platform prefab here"),
+                platformPrefab, typeof(GameObject), false);
+            EditorGUILayout.EndVertical();
+        }
 
-        GUILayout.Space(10);
+        //GUILayout.Space(10);
+        EditorGUILayout.Separator();
 
         // === Position Section ===
-        GUILayout.Label("Spawn Settings", EditorStyles.boldLabel);
-        EditorGUILayout.BeginVertical("box");
-        spawnPosition = EditorGUILayout.Vector3Field("Spawn Position", spawnPosition);
-
-        if (GUILayout.Button("Use Selected Object Position"))
+        // GUILayout.Label("Spawn Settings", EditorStyles.boldLabel);
+        showSpawnSettings = EditorGUILayout.Foldout(showSpawnSettings, "Spawn Settings", true);
+        if (showSpawnSettings)
         {
-            if (Selection.activeGameObject != null)
-            {
-                spawnPosition = Selection.activeGameObject.transform.position;
-                Debug.Log($" Spawn position set to {spawnPosition} (from {Selection.activeGameObject.name})");
-            }
-            else
-            {
-                Debug.LogWarning("No object selected in the scene.");
-            }
-        }
-        EditorGUILayout.EndVertical();
+            EditorGUILayout.BeginVertical("box");
+            spawnPosition = EditorGUILayout.Vector3Field(
+                 new GUIContent("Spawn Position", "The base position where prefabs will be spawned"),
+                 spawnPosition);
 
-        GUILayout.Space(10);
+            if (GUILayout.Button(new GUIContent("Use Selected Object Position", "Set spawn position from selected object in the scene")))
+            {
+                if (Selection.activeGameObject != null)
+                {
+                    spawnPosition = Selection.activeGameObject.transform.position;
+                    Debug.Log($" Spawn position set to {spawnPosition} (from {Selection.activeGameObject.name})");
+                }
+                else
+                {
+                    Debug.LogWarning("No object selected in the scene.");
+                }
+            }
+            EditorGUILayout.EndVertical();
+        }
+        //GUILayout.Space(10);
+        EditorGUILayout.Separator();
 
         // === Options Section ===
-        GUILayout.Label("Options", EditorStyles.boldLabel);
-        EditorGUILayout.BeginVertical("box");
-        randomizePosition = EditorGUILayout.Toggle("Randomize Position", randomizePosition);
-        if (randomizePosition)
+        //GUILayout.Label("Options", EditorStyles.boldLabel);
+        showOptions = EditorGUILayout.Foldout(showOptions, "Options", true);
+        if (showOptions)
         {
-            randomRange = EditorGUILayout.Vector3Field("Random Range", randomRange);
+            EditorGUILayout.BeginVertical("box");
+            randomizePosition = EditorGUILayout.Toggle(
+                new GUIContent("Randomize Position", "Enable random spawn positions within a defined range"),
+                randomizePosition);
+
+            if (randomizePosition)
+            {
+                randomRange = EditorGUILayout.Vector3Field(
+                    new GUIContent("Random Range", "Range for random position offsets (X/Y/Z)"),
+                    randomRange);
+            }
+
+            // spawnCount = EditorGUILayout.IntField("Spawn Count", spawnCount);
+            spawnCount = EditorGUILayout.IntField(
+             new GUIContent("Spawn Count", "How many prefabs to be spawn at once"), spawnCount);
+            spawnCount = Mathf.Max(1, spawnCount); // Prevent negative/zero
+            EditorGUILayout.EndVertical();
         }
 
-        spawnCount = EditorGUILayout.IntField("Spawn Count", spawnCount);
-        spawnCount = Mathf.Max(1, spawnCount); // Prevent negative/zero
-        EditorGUILayout.EndVertical();
-
-        GUILayout.Space(10);
+        //GUILayout.Space(10);
+        EditorGUILayout.Separator();
 
         // === Randomization settings ===
         showRandomization = EditorGUILayout.Foldout(showRandomization, "Randomization Settings", true);
@@ -99,35 +123,50 @@ public class LevelSpawnerWindow : EditorWindow
         {
             EditorGUILayout.BeginVertical("box");
 
+
             // Rotation
-            randomizeRotation = EditorGUILayout.Toggle("Randomize Rotation", randomizeRotation);
+            randomizeRotation = EditorGUILayout.Toggle(
+                new GUIContent("Randomize Rotation", "Apply random rotation within a given range"),
+                randomizeRotation);
+
             if (randomizeRotation)
             {
-                minRotation = EditorGUILayout.Vector3Field("Min Rotation", minRotation);
-                maxRotation = EditorGUILayout.Vector3Field("Max Rotation", maxRotation);
+                minRotation = EditorGUILayout.Vector3Field(new GUIContent("Min Rotation", "Minimum rotation (X/Y/Z)"), minRotation);
+                maxRotation = EditorGUILayout.Vector3Field(new GUIContent("Max Rotation", "Maximum rotation (X/Y/Z)"), maxRotation);
             }
 
             // Scale
-            randomizeScale = EditorGUILayout.Toggle("Randomize Scale", randomizeScale);
+            randomizeScale = EditorGUILayout.Toggle(
+                new GUIContent("Randomize Scale", "Apply random scale within a given range"),
+                randomizeScale);
+
             if (randomizeScale)
             {
-                minScale = EditorGUILayout.Vector3Field("Min Scale", minScale);
-                maxScale = EditorGUILayout.Vector3Field("Max Scale", maxScale);
+                minScale = EditorGUILayout.Vector3Field(new GUIContent("Min Scale", "Minimum scale (X/Y/Z)"), minScale);
+                maxScale = EditorGUILayout.Vector3Field(new GUIContent("Max Scale", "Maximum scale (X/Y/Z)"), maxScale);
             }
 
             EditorGUILayout.EndVertical();
         }
+        // GUILayout.Space(10);
+        EditorGUILayout.Separator();
 
-
-        GUILayout.Space(10);
-
-
-        // === Spawn Buttons ===
+        // === Spawn Buttons === 
         GUILayout.Label("Spawn Prefabs", EditorStyles.boldLabel);
+
         EditorGUILayout.BeginHorizontal();
-        if (GUILayout.Button("Spawn Coin")) { SpawnPrefab(coinPrefab); }
-        if (GUILayout.Button("Spawn Enemy")) { SpawnPrefab(enemyPrefab); }
-        if (GUILayout.Button("Spawn Platform")) { SpawnPrefab(platformPrefab); }
+        if (GUILayout.Button("Spawn Coin", GUILayout.Width(120), GUILayout.Height(25)))
+        {
+            SpawnPrefab(coinPrefab);
+        }
+        if (GUILayout.Button("Spawn Enemy", GUILayout.Width(120), GUILayout.Height(25)))
+        {
+            SpawnPrefab(enemyPrefab);
+        }
+        if (GUILayout.Button("Spawn Platform", GUILayout.Width(120), GUILayout.Height(25)))
+        {
+            SpawnPrefab(platformPrefab);
+        }
         EditorGUILayout.EndHorizontal();
     }
 
