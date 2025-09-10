@@ -3,10 +3,22 @@ using UnityEditor;
 
 public class LevelSpawnerWindow : EditorWindow
 {
+    private Transform spawnParent;
+
+    // Grid Spawning
+    private bool useGridSpawning = false;
+    private int gridRows = 1;
+    private int gridColumns = 1;
+    private Vector2 gridSpacing = new Vector2(2f, 2f);
+    private enum GridPlane { XZ, XY }
+    private GridPlane gridPlane = GridPlane.XZ;
+
+
     private bool showSpawnSettings = true;
     private bool showOptions = true;
     private bool showRandomization = true;
     private bool showPrefabs = true;
+    private bool showGridSettings = true;
 
     // Randomization both location and scale 
     private bool randomizeRotation = false;
@@ -107,10 +119,13 @@ public class LevelSpawnerWindow : EditorWindow
                     randomRange);
             }
 
-            // spawnCount = EditorGUILayout.IntField("Spawn Count", spawnCount);
-            spawnCount = EditorGUILayout.IntField(
+            //Disable spawn count when grid mode is active
+            using (new EditorGUI.DisabledScope(useGridSpawning))
+            {
+                spawnCount = EditorGUILayout.IntField(
              new GUIContent("Spawn Count", "How many prefabs to be spawn at once"), spawnCount);
-            spawnCount = Mathf.Max(1, spawnCount); // Prevent negative/zero
+                spawnCount = Mathf.Max(1, spawnCount); // Prevent negative/zero
+            }
             EditorGUILayout.EndVertical();
         }
 
@@ -151,6 +166,28 @@ public class LevelSpawnerWindow : EditorWindow
         // GUILayout.Space(10);
         EditorGUILayout.Separator();
 
+        //Grid Settings
+        showGridSettings = EditorGUILayout.Foldout(showGridSettings, "Grid Settings", true);
+        if (showGridSettings)
+        {
+            EditorGUILayout.BeginVertical("box");
+
+            useGridSpawning = EditorGUILayout.Toggle(
+        new GUIContent("Enable Grid Spawning", "Toggle between single and grid spawning"),
+        useGridSpawning);
+
+            gridRows = EditorGUILayout.IntField(new GUIContent("Rows", "Number of rows"), gridRows);
+            gridColumns = EditorGUILayout.IntField(new GUIContent("Columns", "Number of columns"), gridColumns);
+            gridSpacing = EditorGUILayout.Vector2Field(new GUIContent("Spacing", "Distance between objects"), gridSpacing);
+            gridPlane = (GridPlane)EditorGUILayout.EnumPopup(new GUIContent("Grid Plane", "XZ = floor, XY = wall"), gridPlane);
+
+            gridRows = Mathf.Max(1, gridRows);
+            gridColumns = Mathf.Max(1, gridColumns);
+
+            EditorGUILayout.EndVertical();
+        }
+        EditorGUILayout.Separator();
+
         // === Spawn Buttons === 
         GUILayout.Label("Spawn Prefabs", EditorStyles.boldLabel);
 
@@ -172,7 +209,39 @@ public class LevelSpawnerWindow : EditorWindow
 
     private void SpawnPrefab(GameObject prefab)
     {
-        if (prefab != null)
+        if (prefab == null)
+        {
+            Debug.LogWarning("No prefab assigned.");
+            return;
+        }
+
+        if (useGridSpawning)
+        {
+            for (int row = 0; row < gridRows; row++)
+            {
+                for (int col = 0; col < gridColumns; col++)
+                {
+                    Vector3 finalPosition = spawnPosition;
+
+                    if (gridPlane == GridPlane.XZ)
+                        finalPosition += new Vector3(col * gridSpacing.x, 0f, row * gridSpacing.y);
+                    else
+                        finalPosition += new Vector3(col * gridSpacing.x, row * gridSpacing.y, 0f);
+
+                    if (randomizePosition)
+                    {
+                        finalPosition += new Vector3(
+                            Random.Range(-randomRange.x, randomRange.x),
+                            Random.Range(-randomRange.y, randomRange.y),
+                            Random.Range(-randomRange.z, randomRange.z)
+                        );
+                    }
+
+                    SpawnSingle(prefab, finalPosition);
+                }
+            }
+        }
+        else
         {
             for (int i = 0; i < spawnCount; i++)
             {
@@ -187,36 +256,55 @@ public class LevelSpawnerWindow : EditorWindow
                     );
                 }
 
-                // Instantiate first
-                GameObject spawned = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-                Undo.RegisterCreatedObjectUndo(spawned, "Spawned " + prefab.name);
-                spawned.transform.position = finalPosition;
-
-                if (randomizeRotation)
-                {
-                    float rotX = Random.Range(minRotation.x, maxRotation.x);
-                    float rotY = Random.Range(minRotation.y, maxRotation.y);
-                    float rotZ = Random.Range(minRotation.z, maxRotation.z);
-                    spawned.transform.rotation = Quaternion.Euler(rotX, rotY, rotZ);
-                }
-
-                if (randomizeScale)
-                {
-                    float scaleX = Random.Range(minScale.x, maxScale.x);
-                    float scaleY = Random.Range(minScale.y, maxScale.y);
-                    float scaleZ = Random.Range(minScale.z, maxScale.z);
-                    spawned.transform.localScale = new Vector3(scaleX, scaleY, scaleZ);
-                }
-
-                UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(spawned.scene);
-                Debug.Log($" Spawned: {prefab.name} at {finalPosition}");
+                SpawnSingle(prefab, finalPosition);
             }
         }
-        else
+    }
+
+
+    private void SpawnSingle(GameObject prefab, Vector3 position)
+    {
+        GameObject spawned = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        Undo.RegisterCreatedObjectUndo(spawned, "Spawned " + prefab.name);
+        spawned.transform.position = position;
+
+        if (randomizeRotation)
         {
-            Debug.LogWarning(" No prefab assigned.");
+            float rotX = Random.Range(minRotation.x, maxRotation.x);
+            float rotY = Random.Range(minRotation.y, maxRotation.y);
+            float rotZ = Random.Range(minRotation.z, maxRotation.z);
+            spawned.transform.rotation = Quaternion.Euler(rotX, rotY, rotZ);
         }
+
+        if (randomizeScale)
+        {
+            float scaleX = Random.Range(minScale.x, maxScale.x);
+            float scaleY = Random.Range(minScale.y, maxScale.y);
+            float scaleZ = Random.Range(minScale.z, maxScale.z);
+            spawned.transform.localScale = new Vector3(scaleX, scaleY, scaleZ);
+        }
+
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(spawned.scene);
+        Debug.Log($" Spawned: {prefab.name} at {position}");
+
+        Selection.activeGameObject = spawned;
+        EnsureParentExists();
+        spawned.transform.SetParent(spawnParent);
 
 
     }
+
+    private void EnsureParentExists()
+    {
+        if (spawnParent == null)
+        {
+            GameObject parent = GameObject.Find("SpawnedObjects");
+            if (parent == null)
+                parent = new GameObject("SpawnedObjects");
+            spawnParent = parent.transform;
+        }
+    }
+
+
+
 }
