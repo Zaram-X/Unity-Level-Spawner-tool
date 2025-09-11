@@ -3,6 +3,8 @@ using UnityEditor;
 
 public class LevelSpawnerWindow : EditorWindow
 {
+    // preset selection(ScriptableObject)
+    private SpawnerSettings selectedPreset = null;
     private Transform spawnParent;
 
     // Grid Spawning
@@ -10,7 +12,7 @@ public class LevelSpawnerWindow : EditorWindow
     private int gridRows = 1;
     private int gridColumns = 1;
     private Vector2 gridSpacing = new Vector2(2f, 2f);
-    private enum GridPlane { XZ, XY }
+    // private enum GridPlane { XZ, XY }
     private GridPlane gridPlane = GridPlane.XZ;
 
 
@@ -188,22 +190,59 @@ public class LevelSpawnerWindow : EditorWindow
         }
         EditorGUILayout.Separator();
 
+        // Presets UI
+        GUILayout.Label("Presets", EditorStyles.boldLabel);
+
+        selectedPreset = (SpawnerSettings)EditorGUILayout.ObjectField(
+            new GUIContent("Preset", "Select a SpawnerSettings asset to load/save"),
+            selectedPreset, typeof(SpawnerSettings), false);
+
+        EditorGUILayout.BeginHorizontal();
+        if (GUILayout.Button(new GUIContent("Save New Preset...", "Create a new SpawnerSettings asset from current values")))
+        {
+            SaveNewPreset();
+        }
+
+        using (new EditorGUI.DisabledScope(selectedPreset == null))
+        {
+            if (GUILayout.Button(new GUIContent("Save to Selected", "Overwrite the selected preset with current values")))
+            {
+                SaveToSelectedPreset();
+            }
+
+            if (GUILayout.Button(new GUIContent("Load Preset", "Load values from selected preset into the tool")))
+            {
+                LoadSelectedPreset();
+            }
+        }
+        EditorGUILayout.EndHorizontal();
+        EditorGUILayout.Separator();
+
+
         // === Spawn Buttons === 
         GUILayout.Label("Spawn Prefabs", EditorStyles.boldLabel);
 
         EditorGUILayout.BeginHorizontal();
-        if (GUILayout.Button("Spawn Coin", GUILayout.Width(120), GUILayout.Height(25)))
+
+        using (new EditorGUI.DisabledScope(coinPrefab == null))
         {
-            SpawnPrefab(coinPrefab);
+            if (GUILayout.Button("Spawn Coin", GUILayout.Width(120), GUILayout.Height(25)))
+                SpawnPrefab(coinPrefab);
         }
-        if (GUILayout.Button("Spawn Enemy", GUILayout.Width(120), GUILayout.Height(25)))
+
+
+        using (new EditorGUI.DisabledScope(coinPrefab == null))
         {
-            SpawnPrefab(enemyPrefab);
+            if (GUILayout.Button("Spawn Enemy", GUILayout.Width(120), GUILayout.Height(25)))
+                SpawnPrefab(enemyPrefab);
         }
-        if (GUILayout.Button("Spawn Platform", GUILayout.Width(120), GUILayout.Height(25)))
+
+        using (new EditorGUI.DisabledScope(coinPrefab == null))
         {
-            SpawnPrefab(platformPrefab);
+            if (GUILayout.Button("Spawn Platform", GUILayout.Width(120), GUILayout.Height(25)))
+                SpawnPrefab(platformPrefab);
         }
+        
         EditorGUILayout.EndHorizontal();
     }
 
@@ -287,9 +326,10 @@ public class LevelSpawnerWindow : EditorWindow
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(spawned.scene);
         Debug.Log($" Spawned: {prefab.name} at {position}");
 
-        Selection.activeGameObject = spawned;
         EnsureParentExists();
-        spawned.transform.SetParent(spawnParent);
+        Undo.SetTransformParent(spawned.transform, spawnParent, "Parent Spawned Object");
+        Selection.activeGameObject = spawned;
+
 
 
     }
@@ -304,6 +344,116 @@ public class LevelSpawnerWindow : EditorWindow
             spawnParent = parent.transform;
         }
     }
+
+
+    // Preset save/load helpers
+
+    private void SaveNewPreset()
+    {
+        string path = EditorUtility.SaveFilePanelInProject(
+            "Save Spawner Preset",
+            "SpawnerSettings",
+            "asset",
+            "Choose where to save the preset asset in your project");
+
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        SpawnerSettings asset = ScriptableObject.CreateInstance<SpawnerSettings>();
+        CopyWindowToSettings(asset);
+        AssetDatabase.CreateAsset(asset, path);
+        AssetDatabase.SaveAssets();
+        EditorUtility.FocusProjectWindow();
+        Selection.activeObject = asset;
+        selectedPreset = asset; // auto-select the newly created preset
+        Debug.Log("Spawner preset created: " + path);
+    }
+
+    private void SaveToSelectedPreset()
+    {
+        if (selectedPreset == null) return;
+
+        CopyWindowToSettings(selectedPreset);
+        EditorUtility.SetDirty(selectedPreset);
+        AssetDatabase.SaveAssets();
+        Debug.Log("Spawner preset saved: " + AssetDatabase.GetAssetPath(selectedPreset));
+    }
+
+    private void LoadSelectedPreset()
+    {
+        if (selectedPreset == null) return;
+
+        CopySettingsToWindow(selectedPreset);
+        Repaint();
+        Debug.Log("Spawner preset loaded: " + AssetDatabase.GetAssetPath(selectedPreset));
+    }
+
+    private void CopyWindowToSettings(SpawnerSettings s)
+    {
+        // Prefabs
+        s.coinPrefab = coinPrefab;
+        s.enemyPrefab = enemyPrefab;
+        s.platformPrefab = platformPrefab;
+
+        // Basic
+        s.spawnPosition = spawnPosition;
+        s.spawnCount = spawnCount;
+
+        // Random position
+        s.randomizePosition = randomizePosition;
+        s.randomRange = randomRange;
+
+        // Rotation
+        s.randomizeRotation = randomizeRotation;
+        s.minRotation = minRotation;
+        s.maxRotation = maxRotation;
+
+        // Scale
+        s.randomizeScale = randomizeScale;
+        s.minScale = minScale;
+        s.maxScale = maxScale;
+
+        // Grid
+        s.useGrid = useGridSpawning;
+        s.gridRows = gridRows;
+        s.gridColumns = gridColumns;
+        s.gridSpacing = gridSpacing;
+        s.gridPlane = gridPlane;
+    }
+
+    private void CopySettingsToWindow(SpawnerSettings s)
+    {
+        // Prefabs
+        coinPrefab = s.coinPrefab;
+        enemyPrefab = s.enemyPrefab;
+        platformPrefab = s.platformPrefab;
+
+        // Basic
+        spawnPosition = s.spawnPosition;
+        spawnCount = Mathf.Max(1, s.spawnCount);
+
+        // Random position
+        randomizePosition = s.randomizePosition;
+        randomRange = s.randomRange;
+
+        // Rotation
+        randomizeRotation = s.randomizeRotation;
+        minRotation = s.minRotation;
+        maxRotation = s.maxRotation;
+
+        // Scale
+        randomizeScale = s.randomizeScale;
+        minScale = s.minScale;
+        maxScale = s.maxScale;
+
+        // Grid
+        useGridSpawning = s.useGrid;
+        gridRows = Mathf.Max(1, s.gridRows);
+        gridColumns = Mathf.Max(1, s.gridColumns);
+        gridSpacing = s.gridSpacing;
+        gridPlane = s.gridPlane;
+    }
+
 
 
 
